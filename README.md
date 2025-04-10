@@ -1,91 +1,126 @@
-# CS6140 ML Project: Analyzing Household Responses to Dynamic Time-of-Use Pricing Signals
+# CS6140 ML Project: Analyzing Household Energy Consumption Anomalies
 
 ## Overview
 
-This project aims to analyze household responses to dynamic Time-of-Use (dToU) pricing signals using machine learning techniques. By leveraging data from London's smart meter energy use dataset, the project identifies abnormal consumption patterns, visualizes key trends, and employs both unsupervised (K-Means clustering) and supervised (Random Forest and Neural Network) learning methods for anomaly detection.
+This project analyzes London's smart meter energy usage data to identify abnormal consumption patterns. It employs unsupervised anomaly detection using **Isolation Forest** and supervised learning techniques (**LightGBM** and **Neural Networks**) to classify these anomalies based on engineered features. The goal is to understand household responses and detect deviations from typical energy usage.
+
+## Objectives and Expected Outcomes
+
+### Objectives
+- Visualize household energy consumption over time and identify anomalies using data visualization techniques.
+- Apply unsupervised learning (Isolation Forest) to detect abnormal responses to dynamic Time-of-Use (dToU) pricing.
+- Train supervised models (LightGBM, Neural Networks) to classify anomalies based on engineered features.
+- Evaluate model performance and compare with visualization insights.
+- Provide actionable insights for policymakers to optimize dToU pricing strategies considering inefficiency, non-adherence, or behavioral factors.
+
+### Expected Outcomes
+- Identification of distinct clusters or patterns of household behavior.
+- Quantification of the proportion of households exhibiting abnormal responses to dToU pricing.
+- Visualizations such as time-series plots and anomaly distributions.
+- Summarized findings, model performance metrics, and recommendations for future work or policy adjustments.
 
 ## Folder Structure
 
 ```
-cs6140_ml_project/
+Anomaly-Detection/
 ├── README.md                # Project overview and instructions
 ├── requirements.txt         # List of project dependencies
-├── setup.py                 # Setup script for packaging/installing (if needed)
 ├── data/
-│   ├── raw/                 # Original/raw data from the London smart meter dataset
-│   └── processed/           # Cleaned and preprocessed data files
+│   ├── raw/                 # Original/raw data (e.g., smart_meter_data.csv)
+│   └── processed/           # Filtered, cleaned, and feature-engineered data files
 ├── notebooks/
 │   ├── EDA.ipynb            # Exploratory data analysis notebook
-│   ├── anomaly_visualization.ipynb  # Notebook for anomaly detection visualization
-│   └── model_training.ipynb # Notebook for model training and experiments
+│   ├── model_training.ipynb # Notebook for loading models and demonstrating predictions
+│   └── anomaly_visualization.ipynb  # Notebook for visualizing anomalies and model results
 ├── src/
 │   ├── __init__.py          # Marks src as a Python package
-│   ├── data_preprocessing.py  # Data cleaning and preprocessing scripts
-│   ├── feature_engineering.py # Feature extraction scripts (e.g., time-based features)
-│   ├── model_kmeans.py      # K-Means clustering implementation
-│   ├── model_random_forest.py  # Random Forest classifier implementation
+│   ├── filteration.py       # Script to filter the raw dataset (if needed)
+│   ├── data_preprocessing.py  # Data cleaning and preprocessing script
+│   ├── feature_engineering.py # Feature extraction script (e.g., time-based features)
+│   ├── model_isolation_forest.py # Isolation Forest for unsupervised anomaly detection
+│   ├── model_lightgbm.py      # LightGBM classifier implementation
 │   ├── model_neural_network.py # Neural network model implementation
-│   ├── evaluation.py        # Model evaluation functions (e.g., silhouette score, accuracy)
-│   └── utils.py             # Utility functions (plotting, saving figures, etc.)
-├── models/
-│   ├── kmeans_model.pkl     # Saved clustering model
-│   ├── rf_model.pkl         # Saved Random Forest model
-│   └── nn_model.h5          # Saved Neural Network model
-├── reports/
-│   ├── final_report.pdf     # Final project report with findings and recommendations
-│   └── presentation.pdf     # Slides for presenting your project
-├── figures/
-│   ├── eda_plots/           # Plots and charts from the EDA phase
-│   └── clustering_results/  # Visualizations of clustering and anomaly detection
-└── docs/
-    ├── CS6140_ML_Project_Proposal.pdf  # Project proposal document
-    └── meeting_notes.md     # Notes from group meetings and discussions
+│   ├── evaluation.py        # Model evaluation functions
+│   └── utils.py             # Utility functions
+├── models/                  # Saved trained models
+│   ├── isolation_forest_model.pkl
+│   ├── lightgbm_model.pkl
+│   ├── nn_model.h5
+│   └── nn_scaler.pkl
+└── docs/                    # Project documentation (proposal, etc.)
+    └── CS6140_ML_Project_Proposal.pdf
 ```
+*(Note: Other files like `model_kmeans.py`, `model_random_forest.py`, `.py` versions of notebooks, etc., might exist but are secondary to the main workflow described here)*
 
 ## Setup and Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd cs6140_ml_project
-   ```
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd Anomaly-Detection
+    ```
 
-2. **Create a virtual environment (recommended):**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate   # For Windows: venv\Scripts\activate
-   ```
+2.  **Environment Setup:** This project requires a Python environment with the necessary packages installed. You can use conda, venv, or any other environment manager. **Make sure to activate your environment before running the scripts.**
 
-3. **Install the required dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+3.  **Install Dependencies:** Install the required Python packages into your environment.
+    ```bash
+    python -m pip install -r requirements.txt
+    ```
+    *(Ensure `requirements.txt` includes `pandas`, `numpy`, `scikit-learn`, `tensorflow`, `lightgbm`, `matplotlib`, `seaborn`, `joblib`)*
 
-## Usage
+## Workflow
 
-- **Data Preprocessing:**  
-  Run `src/data_preprocessing.py` to load, clean, and normalize your raw dataset. Processed data is saved in the `data/processed/` folder.
+Execute the following steps in order using your activated Python environment.
 
-- **Feature Engineering:**  
-  Execute `src/feature_engineering.py` to extract time-based and tariff features from your dataset.
+1.  **Download Data:**
+    *   Download the full dataset from [London Datastore](https://data.london.gov.uk/download/smartmeter-energy-use-data-in-london-households/3527bf39-d93e-4071-8451-df2ade1ea4f2/LCL-FullData.zip).
+    *   Unzip the contained CSV file (`block_*.csv`) into the `data/raw/` directory.
+    *   **Rename** the unzipped CSV file to `smart_meter_data.csv`.
 
-- **Exploratory Data Analysis (EDA):**  
-  Open `notebooks/EDA.ipynb` to visualize your dataset, understand key distributions, and perform initial analysis.
+2.  **Filter Raw Data (Optional but Recommended):**
+    *   The full dataset is very large. Run the filtering script to create a smaller, manageable subset (e.g., ~1 million rows).
+        ```bash
+        python src/filteration.py
+        ```
+    *   **Note:** This script should be configured to read `data/raw/smart_meter_data.csv` and save the filtered output (e.g., potentially overwriting the original or saving to `data/raw/smart_meter_data_filtered.csv`). Adjust subsequent steps accordingly if the filename changes.
+    *   **Important:** Ensure the subsequent scripts (`data_preprocessing.py`, etc.) are configured to read the **correct** (potentially filtered) raw data file.
 
-- **Model Training and Evaluation:**  
-  Use `notebooks/model_training.ipynb` to experiment with K-Means clustering, train the Random Forest classifier, and develop a Neural Network for anomaly detection. Evaluation metrics and visualizations are provided to assess model performance.
+3.  **Preprocess Data:**
+    *   Clean, handle missing values, and normalize the (filtered) raw data.
+        ```bash
+        python src/data_preprocessing.py
+        ```
+    *   *(Input: `data/raw/smart_meter_data.csv` (or filtered file), Output: `data/processed/smart_meter_data_processed.csv`)*
 
-- **Visualization of Anomalies:**  
-  Open `notebooks/anomaly_visualization.ipynb` to visualize anomalies in energy consumption data over time and inspect clustering results.
+4.  **Engineer Features:**
+    *   Extract time-based features (hour, day of week, etc.).
+        ```bash
+        python src/feature_engineering.py
+        ```
+    *   *(Input: `data/processed/smart_meter_data_processed.csv`, Output: `data/processed/smart_meter_data_features.csv`)*
 
-## Contact
+5.  **Unsupervised Anomaly Detection:**
+    *   Run Isolation Forest to generate anomaly labels.
+        ```bash
+        python src/model_isolation_forest.py
+        ```
+    *   *(Input: `data/processed/smart_meter_data_features.csv`, Output: `data/processed/smart_meter_data_anomalies_if.csv` (with 'anomaly' column), Model: `models/isolation_forest_model.pkl`)*
 
-For further questions or clarifications, please contact the project team:
-- Ishan Biswas
-- Divyank Singh
-- Sri Sai Teja Mettu Srinivas
+6.  **Supervised Model Training:**
+    *   Train models to predict the anomalies identified by Isolation Forest. Run either or both:
+    *   **LightGBM:**
+        ```bash
+        python src/model_lightgbm.py
+        ```
+        *(Input: `data/processed/smart_meter_data_anomalies_if.csv`, Model: `models/lightgbm_model.pkl`)*
+    *   **Neural Network:**
+        ```bash
+        python src/model_neural_network.py
+        ```
+        *(Input: `data/processed/smart_meter_data_anomalies_if.csv`, Model: `models/nn_model.h5`, Scaler: `models/nn_scaler.pkl`)*
 
-## License
-
-This project is licensed under the MIT License.
-```
+7.  **Analysis and Visualization (Notebooks):**
+    *   Use Jupyter notebooks to explore the data and model results. Ensure the notebook kernel uses your project environment's Python interpreter.
+    *   **`notebooks/EDA.ipynb`**: Explore the processed data and anomaly distributions.
+    *   **`notebooks/model_training.ipynb`**: Load the trained models (`IsolationForest`, `LGBMClassifier`, `TensorFlow/Keras`) and demonstrate making predictions.
+    *   **`notebooks/anomaly_visualization.ipynb`**: Visualize the detected anomalies, anomaly scores, and compare model predictions.
