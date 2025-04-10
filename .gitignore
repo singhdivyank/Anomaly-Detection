@@ -1,0 +1,34 @@
+# Exclude environment folder
+.conda/
+
+# Exclude large raw data files
+data/raw/smart_meter_data_dtou.csv
+data/raw/smart_meter_data.csv
+
+# Exclude large processed data files
+data/processed/smart_meter_data_anomalies_if.csv
+data/processed/smart_meter_data_features.csv
+data/processed/smart_meter_data_processed.csv
+
+# Exclude intermediate or redundant scripts/notebooks
+notebooks/anomaly_visualization.py
+notebooks/model_training.py
+notebooks/EDA.py
+notebooks/exp.ipynb
+
+# Exclude environment rules file
+.windsurfrules
+
+# Exclude typical Python cache and environment files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.venv
+.env/
+.venv/
+*.egg-info/
+dist/
+build/
+.ipynb_checkpoints/
