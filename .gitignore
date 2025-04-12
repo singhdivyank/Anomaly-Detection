@@ -33,3 +33,4 @@ dist/
 build/
 .ipynb_checkpoints/
 images/
+report.tex
