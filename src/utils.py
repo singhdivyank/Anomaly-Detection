@@ -102,3 +102,13 @@ def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion Matrix'
     if output_path:
         save_figure(plt.gcf(), output_path)
     plt.show()
+
+def plot_roc(fpr, tpr, roc_auc):
+    plt.figure(figsize=(8, 6))
+    plt.plot(fpr, tpr, label=f'ROC curve (area = {roc_auc:.2f})')
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver Operating Characteristic (ROC) Curve')
+    plt.legend(loc="lower right")
+    plt.show()
