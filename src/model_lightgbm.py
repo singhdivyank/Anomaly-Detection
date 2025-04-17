@@ -1,69 +1,45 @@
+import os
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-import lightgbm as lgb
 import joblib
-import os
 
-def train_lightgbm(data, features, target, test_size=0.2, random_state=42, model_path="models/lightgbm_model.pkl"):
-    if os.path.exists(model_path):
-        print(f"Loading existing LightGBM model from {model_path}")
-        model = joblib.load(model_path)
+import lightgbm as lgb
+
+from sklearn.model_selection import train_test_split
+
+from .consts import *
+from ..utils import *
+
+def train_lightgbm(data, features, target):
+    if os.path.exists(LIGHTGBM_PATH):
+        print(f"Loading existing LightGBM model from {LIGHTGBM_PATH}")
+        model = joblib.load(LIGHTGBM_PATH)
         return model
 
-    X = data[features]
-    y = data[target]
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state
-    )
+    # segregate features and target
+    X, y = data[features], data[target]
+    # train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     print("Training new LightGBM model...")
-    model = lgb.LGBMClassifier(random_state=random_state, n_jobs=-1)
-    model.fit(X_train, y_train,
-              eval_set=[(X_test, y_test)],
-              eval_metric='logloss',
-              callbacks=[lgb.early_stopping(10, verbose=False)])
-
+    model = lgb.LGBMClassifier(random_state=42, n_jobs=-1)
+    model.fit(X_train, y_train, eval_set=[(X_test, y_test)], eval_metric='logloss', callbacks=[lgb.early_stopping(10, verbose=False)])
+    joblib.dump(model, LIGHTGBM_PATH)
+    print(f"LightGBM model saved to {LIGHTGBM_PATH}")
     y_pred = model.predict(X_test)
-
-    acc = accuracy_score(y_test, y_pred)
-    cm = confusion_matrix(y_test, y_pred)
-    cr = classification_report(y_test, y_pred)
-    print(f"Accuracy: {acc:.3f}")
-    print("Confusion Matrix:")
-    print(cm)
-    print("Classification Report:")
-    print(cr)
-
-    joblib.dump(model, model_path)
-    print(f"LightGBM model saved to {model_path}")
-
-    return model
+    evaluate_model(y_test, y_pred)
 
 if __name__ == "__main__":
-    data_path = "data/processed/smart_meter_data_anomalies_if.csv"
-    model_output_path = "models/lightgbm_model.pkl"
-
-    try:
-        data = pd.read_csv(data_path)
-    except FileNotFoundError:
-        print(f"Error: Data file not found at {data_path}. Please run the Isolation Forest script first.")
-        exit()
-
-    target = 'anomaly'
-    if target not in data.columns:
-        print(f"Target column '{target}' not found.")
+    data = pd.read_csv(ANOMALY_FILE_PATH)
+    if 'anomaly' not in data.columns:
+        print("Target column 'anomaly' not found.")
         exit()
 
     numeric_features = data.select_dtypes(include=np.number).columns.tolist()
-    features_to_exclude = ['cluster', 'anomaly_score', 'anomaly']
-    features = [col for col in numeric_features if col not in features_to_exclude]
-
+    features = [col for col in numeric_features if col not in ['cluster', 'anomaly_score', 'anomaly']]
     if not features:
         print("No suitable numeric features found for training.")
         exit()
 
     print("Using features for LightGBM:", features)
-
-    model = train_lightgbm(data, features, target, model_path=model_output_path)
+    train_lightgbm(data, features, 'anomaly')
