@@ -28,7 +28,6 @@ $$\text{Spring Boot Layer} \xrightarrow{\text{WebSockets / STOMP}} \text{React.j
 
 ```filesystem
 anomaly-detection-platform/
-├── CLAUDE.md                          # This context definition file for Claude Code
 ├── docker-compose.yml                 # Local orchestrator for Kafka, TimescaleDB, and backend services
 ├── terraform/                         # IaC for GCP infrastructure
 │   ├── main.tf
