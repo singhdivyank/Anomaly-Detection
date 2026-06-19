@@ -1,126 +1,138 @@
-# CS6140 ML Project: Analyzing Household Energy Consumption Anomalies
+## System Objective: Smart Meter Grid Reliability & Demand-Response Analytics Platform
 
-## Overview
+A high-throughput, low-latency B2B enterprise SaaS platform designed for electrical grid operators to monitor multi-tenant smart meter IoT streams in real-time. The platform ingests energy usage data, handles stateful streaming data routing, runs inline machine learning inference to detect demand non-adherence and technical anomalies, and broadcasts instant dashboard alerts.
 
-This project analyzes London's smart meter energy usage data to identify abnormal consumption patterns. It employs unsupervised anomaly detection using **Isolation Forest** and supervised learning techniques (**LightGBM** and **Neural Networks**) to classify these anomalies based on engineered features. The goal is to understand household responses and detect deviations from typical energy usage.
+### High-Level Architecture Flow
 
-## Objectives and Expected Outcomes
+$$\text{Data Simulator (Go)} \xrightarrow{\text{Protobuf Streaming}} \text{Apache Kafka} \xrightarrow{\text{Pub/Sub Ingestion}} \text{Spring Boot Application} \xrightarrow{\text{Async Sidecar Proxy}} \text{FastAPI (Python ML Inference)}$$
 
-### Objectives
-- Visualize household energy consumption over time and identify anomalies using data visualization techniques.
-- Apply unsupervised learning (Isolation Forest) to detect abnormal responses to dynamic Time-of-Use (dToU) pricing.
-- Train supervised models (LightGBM, Neural Networks) to classify anomalies based on engineered features.
-- Evaluate model performance and compare with visualization insights.
-- Provide actionable insights for policymakers to optimize dToU pricing strategies considering inefficiency, non-adherence, or behavioral factors.
+$$\text{Spring Boot Layer} \xrightarrow{\text{WebSockets / STOMP}} \text{React.js Real-time Dashboard}$$
 
-### Expected Outcomes
-- Identification of distinct clusters or patterns of household behavior.
-- Quantification of the proportion of households exhibiting abnormal responses to dToU pricing.
-- Visualizations such as time-series plots and anomaly distributions.
-- Summarized findings, model performance metrics, and recommendations for future work or policy adjustments.
+---
 
-## Folder Structure
+## Technical Stack Matrix
+
+| Layer                    | Technology                        | Key Responsibility                                                                                  |
+| ------------------------ | --------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Data Simulation**      | **Go (Golang 1.24+)**             | High-performance CSV parser and concurrent mock IoT driver streaming to Kafka clusters.             |
+| **Message Broker**       | **Apache Kafka**                  | Multi-topic ingestion framework partitioned by `household_id` to guarantee ordering.                |
+| **Core Backend**         | **Java 21 / Spring Boot 3.4+**    | Stream consumption, alert state aggregation, PostgreSQL/TimescaleDB persistence, WebSocket routing. |
+| **ML Inference Sidecar** | **Python 3.11+ / FastAPI**        | High-throughput encapsulation of pretrained Isolation Forest, LightGBM, and Neural Network models.  |
+| **Database Engine**      | **TimescaleDB / PostgreSQL**      | Hybrid storage optimization: Timescale hypertables for raw ticks; relational schemas for entities.  |
+| **Frontend Framework**   | **React.js 19 (Vite) + Tailwind** | Reactive UI utilizing WebSockets, Recharts time-series mapping, and critical alert modals.          |
+| **Infrastructure / IaC** | **Docker Compose / Terraform**    | Reproducible multi-service deployment targeting Google Cloud Run and GKE.                           |
+
+---
+
+## Monorepo Folder Structure
+
+```filesystem
+anomaly-detection-platform/
+├── CLAUDE.md                          # This context definition file for Claude Code
+├── docker-compose.yml                 # Local orchestrator for Kafka, TimescaleDB, and backend services
+├── terraform/                         # IaC for GCP infrastructure
+│   ├── main.tf
+│   ├── variables.tf
+│   └── outputs.tf
+│
+├── iot-simulator/                     # [Go Service]
+│   ├── main.go                        # Fast CSV reader and Kafka producer loop
+│   ├── go.mod
+│   └── data/                          # Mount location for raw smart_meter_data.csv
+│
+├── core-backend/                      # [Spring Boot Service]
+│   ├── pom.xml
+│   └── src/main/java/com/grid/analytics/
+│       ├── config/                    # KafkaConsumerConfig, WebSocketConfig, SecurityConfig
+│       ├── consumer/                  # SmartMeterStreamConsumer.java (Listens to Kafka)
+│       ├── controller/                # AlertController.java, DashboardController.java
+│       ├── model/                     # MeterReading.java, AnomalyAlert.java (JPA Entities)
+│       ├── repository/                # MeterReadingRepository.java (Timescale hypertables query)
+│       ├── service/                   # InferenceClientService.java (Calls Python sidecar over HTTP/gRPC)
+│       └── websocket/                 # WebSocketAlertBroker.java
+│
+├── ml-inference/                      # [Python FastAPI Service - Ported from your ML Base]
+│   ├── main.py                        # FastAPI microservice exposing HTTP validation endpoints
+│   ├── requirements.txt
+│   ├── models/                        # Pretrained serialized binaries mounted here
+│   │   ├── isolation_forest_model.pkl
+│   │   ├── lightgbm_model.pkl
+│   │   └── nn_scaler.pkl
+│   └── services/
+│       └── predictor.py               # Feature reconstruction matrix processing and score generation
+│
+└── dashboard-ui/                      # [React.js App via Vite]
+    ├── package.json
+    ├── vite.config.js
+    ├── tailwind.config.js
+    └── src/
+        ├── components/                # RealTimeChart.jsx, AlertBanner.jsx, MetricCard.jsx
+        ├── hooks/                     # useWebSocket.js (Handles connection to Spring Boot STOMP broker)
+        └── App.jsx
 
 ```
-Anomaly-Detection/
-├── README.md                # Project overview and instructions
-├── requirements.txt         # List of project dependencies
-├── data/
-│   ├── raw/                 # Original/raw data (e.g., smart_meter_data.csv)
-│   └── processed/           # Filtered, cleaned, and feature-engineered data files
-├── notebooks/
-│   ├── EDA.ipynb            # Exploratory data analysis notebook
-│   ├── model_training.ipynb # Notebook for loading models and demonstrating predictions
-│   └── anomaly_visualization.ipynb  # Notebook for visualizing anomalies and model results
-├── src/
-│   ├── __init__.py          # Marks src as a Python package
-│   ├── filteration.py       # Script to filter the raw dataset (if needed)
-│   ├── data_preprocessing.py  # Data cleaning and preprocessing script
-│   ├── feature_engineering.py # Feature extraction script (e.g., time-based features)
-│   ├── model_isolation_forest.py # Isolation Forest for unsupervised anomaly detection
-│   ├── model_lightgbm.py      # LightGBM classifier implementation
-│   ├── model_neural_network.py # Neural network model implementation
-│   ├── evaluation.py        # Model evaluation functions
-│   └── utils.py             # Utility functions
-├── models/                  # Saved trained models
-│   ├── isolation_forest_model.pkl
-│   ├── lightgbm_model.pkl
-│   ├── nn_model.h5
-│   └── nn_scaler.pkl
-└── docs/                    # Project documentation (proposal, etc.)
-    └── CS6140_ML_Project_Proposal.pdf
+
+---
+
+## System Specs & Integration Boundaries
+
+### 1. Ingestion Contract (Apache Kafka)
+
+- **Topic:** `smart-meter-telemetry`
+- **Partition Key:** `household_id` (Ensures time-series ordering per home node).
+- **Payload Structure (JSON):**
+
+```json
+{
+  "household_id": "MAC000123",
+  "timestamp": "2026-06-18T02:35:10Z",
+  "kw_consumed": 0.432,
+  "pricing_tier": "dToU_High",
+  "is_weekend": false
+}
 ```
-*(Note: Other files like `model_kmeans.py`, `model_random_forest.py`, `.py` versions of notebooks, etc., might exist but are secondary to the main workflow described here)*
 
-## Setup and Installation
+### 2. Spring Boot to Python Inference Contract
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd Anomaly-Detection
-    ```
+- **Protocol:** Synchronous REST POST (or gRPC) targeting `http://ml-inference:8000/api/v1/predict`
+- **FastAPI Processing Logic:** The Python microservice takes incoming raw stats, applies the `nn_scaler.pkl`, and formats input vectors matching your original feature engineering structure (`hour`, `day_of_week`, `rolling_mean_3h`).
+- **Inference Response Payload:**
 
-2.  **Environment Setup:** This project requires a Python environment with the necessary packages installed. You can use conda, venv, or any other environment manager. **Make sure to activate your environment before running the scripts.**
+```json
+{
+  "anomaly_detected": true,
+  "anomaly_score": -0.142,
+  "confidence_score": 0.89
+}
+```
 
-3.  **Install Dependencies:** Install the required Python packages into your environment.
-    ```bash
-    python -m pip install -r requirements.txt
-    ```
-    *(Ensure `requirements.txt` includes `pandas`, `numpy`, `scikit-learn`, `tensorflow`, `lightgbm`, `matplotlib`, `seaborn`, `joblib`)*
+### 3. Frontend WebSockets Contract
 
-## Workflow
+- **Broker Endpoint:** `ws://localhost:8080/grid-ws-broker`
+- **Subscription Destination:** `/topic/live-alerts`
+- **Action:** When Spring Boot evaluates `anomaly_detected == true`, it stores the record inside the database and pushes the payload directly to the dashboard client without database polling.
 
-Execute the following steps in order using your activated Python environment.
+---
 
-1.  **Download Data:**
-    *   Download the full dataset from [London Datastore](https://data.london.gov.uk/download/smartmeter-energy-use-data-in-london-households/3527bf39-d93e-4071-8451-df2ade1ea4f2/LCL-FullData.zip).
-    *   Unzip the contained CSV file (`block_*.csv`) into the `data/raw/` directory.
-    *   **Rename** the unzipped CSV file to `smart_meter_data.csv`.
+## Development Commands Reference
 
-2.  **Filter Raw Data (Optional but Recommended):**
-    *   The full dataset is very large. Run the filtering script to create a smaller, manageable subset (e.g., ~1 million rows).
-        ```bash
-        python src/filteration.py
-        ```
-    *   **Note:** This script should be configured to read `data/raw/smart_meter_data.csv` and save the filtered output (e.g., potentially overwriting the original or saving to `data/raw/smart_meter_data_filtered.csv`). Adjust subsequent steps accordingly if the filename changes.
-    *   **Important:** Ensure the subsequent scripts (`data_preprocessing.py`, etc.) are configured to read the **correct** (potentially filtered) raw data file.
+Claude Code can execute these within the workspace directories to build or verify components:
 
-3.  **Preprocess Data:**
-    *   Clean, handle missing values, and normalize the (filtered) raw data.
-        ```bash
-        python src/data_preprocessing.py
-        ```
-    *   *(Input: `data/raw/smart_meter_data.csv` (or filtered file), Output: `data/processed/smart_meter_data_processed.csv`)*
+- **Spin up local infrastructure dependencies:**
+  `docker-compose up -d kafka zookeeper postgresql-timescale`
+- **Run Go IoT Simulator:**
+  `cd iot-simulator && go run main.go`
+- **Build/Run Spring Boot Backend:**
+  `cd core-backend && ./mvnw spring-boot:run`
+- **Run Python ML Service:**
+  `cd ml-inference && pip install -r requirements.txt && uvicorn main:app --reload --port 8000`
+- **Run React Development Workspace:**
+  `cd dashboard-ui && npm install && npm run dev`
 
-4.  **Engineer Features:**
-    *   Extract time-based features (hour, day of week, etc.).
-        ```bash
-        python src/feature_engineering.py
-        ```
-    *   *(Input: `data/processed/smart_meter_data_processed.csv`, Output: `data/processed/smart_meter_data_features.csv`)*
+---
 
-5.  **Unsupervised Anomaly Detection:**
-    *   Run Isolation Forest to generate anomaly labels.
-        ```bash
-        python src/model_isolation_forest.py
-        ```
-    *   *(Input: `data/processed/smart_meter_data_features.csv`, Output: `data/processed/smart_meter_data_anomalies_if.csv` (with 'anomaly' column), Model: `models/isolation_forest_model.pkl`)*
+## Coding Guidelines for Tool Automation
 
-6.  **Supervised Model Training:**
-    *   Train models to predict the anomalies identified by Isolation Forest. Run either or both:
-    *   **LightGBM:**
-        ```bash
-        python src/model_lightgbm.py
-        ```
-        *(Input: `data/processed/smart_meter_data_anomalies_if.csv`, Model: `models/lightgbm_model.pkl`)*
-    *   **Neural Network:**
-        ```bash
-        python src/model_neural_network.py
-        ```
-        *(Input: `data/processed/smart_meter_data_anomalies_if.csv`, Model: `models/nn_model.h5`, Scaler: `models/nn_scaler.pkl`)*
-
-7.  **Analysis and Visualization (Notebooks):**
-    *   Use Jupyter notebooks to explore the data and model results. Ensure the notebook kernel uses your project environment's Python interpreter.
-    *   **`notebooks/EDA.ipynb`**: Explore the processed data and anomaly distributions.
-    *   **`notebooks/model_training.ipynb`**: Load the trained models (`IsolationForest`, `LGBMClassifier`, `TensorFlow/Keras`) and demonstrate making predictions.
-    *   **`notebooks/anomaly_visualization.ipynb`**: Visualize the detected anomalies, anomaly scores, and compare model predictions.
+1. **Strict Type Separation:** Do not mix raw IoT tracking streams inside PostgreSQL's primary transaction block. Relational contexts must strictly contain user definitions, tenant constraints, and alert logging thresholds.
+2. **Resilience & Backpressure:** The Spring Boot Kafka configuration must use a configured `DeadLetterPublishingRecoverer` and `DefaultErrorHandler` to avoid stalling the message stream if corrupted parsing logs arrive.
+3. **Async Network Slicing:** Web requests sent from Spring Boot to Python's inference system must run asynchronously inside a dedicated thread pool or using Spring's reactive `WebClient` to guarantee thread protection.
