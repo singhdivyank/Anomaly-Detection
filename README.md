@@ -135,3 +135,5 @@ Claude Code can execute these within the workspace directories to build or verif
 1. **Strict Type Separation:** Do not mix raw IoT tracking streams inside PostgreSQL's primary transaction block. Relational contexts must strictly contain user definitions, tenant constraints, and alert logging thresholds.
 2. **Resilience & Backpressure:** The Spring Boot Kafka configuration must use a configured `DeadLetterPublishingRecoverer` and `DefaultErrorHandler` to avoid stalling the message stream if corrupted parsing logs arrive.
 3. **Async Network Slicing:** Web requests sent from Spring Boot to Python's inference system must run asynchronously inside a dedicated thread pool or using Spring's reactive `WebClient` to guarantee thread protection.
+
+Dataset source: https://data.london.gov.uk/download/vqm0d/3527bf39-d93e-4071-8451-df2ade1ea4f2/LCL-FullData.zip
