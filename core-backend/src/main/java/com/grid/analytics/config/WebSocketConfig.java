@@ -1,4 +1,4 @@
-package main.java.com.grid.analytics.config;
+package com.grid.analytics.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;

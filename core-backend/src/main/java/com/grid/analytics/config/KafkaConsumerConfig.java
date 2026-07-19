@@ -1,4 +1,4 @@
-package main.java.com.grid.analytics.config;
+package com.grid.analytics.config;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,7 +10,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.*;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ConsumerRecordRecoverer;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -36,8 +41,8 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ProducerFactory<String, String> producerFactory(KafkaProperties KafkaProperties) {
-        return new DefaultKafkaProducerFactory<>(KafkaProperties.buildProducerProperties(null));
+    public ProducerFactory<String, String> producerFactory(KafkaProperties kafkaProperties) {
+        return new DefaultKafkaProducerFactory<>(kafkaProperties.buildProducerProperties(null));
     }
 
     @Bean

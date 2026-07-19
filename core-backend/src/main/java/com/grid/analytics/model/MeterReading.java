@@ -1,4 +1,4 @@
-package main.java.com.grid.analytics.model;
+package com.grid.analytics.model;
 
 import java.time.Instant;
 

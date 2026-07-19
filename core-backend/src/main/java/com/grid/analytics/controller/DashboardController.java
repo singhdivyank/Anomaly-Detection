@@ -1,4 +1,4 @@
-package main.java.com.grid.analytics.controller;
+package com.grid.analytics.controller;
 
 import com.grid.analytics.dto.DashboardSummary;
 import com.grid.analytics.repository.AnomalyAlertRepository;
@@ -6,6 +6,7 @@ import com.grid.analytics.repository.MeterReadingRepository;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
+import java.time.Duration;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

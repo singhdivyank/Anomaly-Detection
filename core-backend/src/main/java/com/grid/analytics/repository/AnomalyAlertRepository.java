@@ -1,6 +1,6 @@
-package main.java.com.grid.analytics.repository;
+package com.grid.analytics.repository;
 
-import main.java.com.grid.analytics.model.AnomalyAlert;
+import com.grid.analytics.model.AnomalyAlert;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

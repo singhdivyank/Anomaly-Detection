@@ -1,4 +1,4 @@
-package main.java.com.grid.analytics;
+package com.grid.analytics;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

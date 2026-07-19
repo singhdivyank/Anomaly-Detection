@@ -1,7 +1,7 @@
-package main.java.com.grid.analytics.websocket;
+package com.grid.analytics.websocket;
 
-import main.java.com.grid.analytics.dto.AlertBroadcast;
-import main.java.com.grid.analytics.dto.TelemetryTick;
+import com.grid.analytics.dto.AlertBroadcast;
+import com.grid.analytics.dto.TelemetryTick;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

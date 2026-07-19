@@ -1,4 +1,4 @@
-package main.java.com.grid.analytics.dto;
+package com.grid.analytics.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -8,8 +8,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Efficiency.
  */
 public record DashboardSummary(
-        @JsonProperty("active_meters") long activeMeters,
-        @JsonProperty("grid_overloads") long gridOverloads,
-        @JsonProperty("demand_non_adherence") long demandNonAdherence,
-        @JsonProperty("system_efficiency_pct") double systemEfficiencyPct) {
+                @JsonProperty("active_meters") long activeMeters,
+                @JsonProperty("grid_overloads") long gridOverloads,
+                @JsonProperty("demand_non_adherence") long demandNonAdherence,
+                @JsonProperty("system_efficiency_pct") double systemEfficiencyPct) {
 }

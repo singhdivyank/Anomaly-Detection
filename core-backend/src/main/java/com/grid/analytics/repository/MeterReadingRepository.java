@@ -1,9 +1,9 @@
-package main.java.com.grid.analytics.repository;
+package com.grid.analytics.repository;
 
 import java.time.Instant;
 import java.util.List;
 
-import main.java.com.grid.analytics.model.MeterReading;
+import com.grid.analytics.model.MeterReading;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

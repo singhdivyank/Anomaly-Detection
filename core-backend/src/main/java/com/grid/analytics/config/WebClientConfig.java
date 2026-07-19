@@ -1,13 +1,14 @@
-package main.java.com.grid.analytics.config;
+package com.grid.analytics.config;
 
 import java.util.concurrent.Executor;
+import java.time.Duration;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.scheduling.annotation.EnableAsync;
-import org.springframework.scheduling.concurrent.ThreadPoolExecutorTask;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.resources.ConnectionProvider;

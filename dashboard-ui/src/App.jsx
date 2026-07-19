@@ -100,7 +100,7 @@ export default function App() {
                     <RealTimeChart ticks={ticks} />
                     <AlertBanner alerts={alerts} />
                     </div>
-                    <GridHealthMap recentAlerts={alerts} />
+                    <GridHealthMap ticks={ticks} alerts={alerts} />
                 </div>
                 </main>
             </div>

@@ -1,4 +1,4 @@
-package main.java.com.grid.analytics.dto;
+package com.grid.analytics.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * {anomaly_detected, anomaly_score, confidence_score}
  */
 public record InferenceResponse(
-        @JsonProperty("anomaly_detected") boolean anomalyDetected,
-        @JsonProperty("anomaly_score") double anomalyScore,
-        @JsonProperty("confidence_score") double confidenceScore) {
+                @JsonProperty("anomaly_detected") boolean anomalyDetected,
+                @JsonProperty("anomaly_score") double anomalyScore,
+                @JsonProperty("confidence_score") double confidenceScore) {
 }

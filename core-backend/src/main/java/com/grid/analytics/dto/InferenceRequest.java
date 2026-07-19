@@ -1,4 +1,4 @@
-package main.java.com.grid.analytics.dto;
+package com.grid.analytics.dto;
 
 import java.time.Instant;
 

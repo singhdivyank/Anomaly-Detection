@@ -1,4 +1,4 @@
-package main.java.com.grid.analytics.config;
+package com.grid.analytics.config;
 
 import java.util.List;
 

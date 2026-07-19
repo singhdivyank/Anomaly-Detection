@@ -18,8 +18,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Subtle SCADA-style grid texture behind the canvas. Kept very low-contrast
-   so it reads as ambient console texture, not decoration. */
 .grid-texture {
   background-image:
     linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
@@ -48,8 +46,11 @@ body {
   }
 }
 
-/* Visible keyboard focus, matching the accent palette rather than the
-   browser default blue outline. */
+.animate-pulse-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 :focus-visible {
   outline: 2px solid #60a5fa;
   outline-offset: 2px;

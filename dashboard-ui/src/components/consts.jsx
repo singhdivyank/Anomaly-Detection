@@ -1,3 +1,5 @@
+import { LayoutGrid, Radio, AlertTriangle, Repeat } from "lucide-react";
+
 export const STATUS_CONFIG = {
   live: { label: "Live", dot: "bg-emerald-400", text: "text-emerald-400" },
   demo: { label: "Demo Mode", dot: "bg-activity-400", text: "text-activity-400" },
@@ -24,4 +26,6 @@ export const NAV_ITEMS = [
 ];
 
 export const WINDOW_SIZE = 50;
-export const REGION_LABEL = "North Region";
+export const REGION_LABEL = "Greater London";
+export const LONDON_CENTER = [51.5074, -0.1278];
+export const DEFAULT_ZOOM = 12;

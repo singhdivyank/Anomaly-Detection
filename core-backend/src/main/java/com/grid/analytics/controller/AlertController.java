@@ -1,8 +1,9 @@
-package main.java.com.grid.analytics.controller;
+package com.grid.analytics.controller;
+
+import lombok.RequiredArgsConstructor;
 
 import com.grid.analytics.model.AnomalyAlert;
 import com.grid.analytics.repository.AnomalyAlertRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;

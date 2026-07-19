@@ -1,21 +1,26 @@
-package main.java.com.grid.analytics.consumer;
+package com.grid.analytics.consumer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grid.analytics.dto.AlertBroadcast;
+import com.grid.analytics.dto.GeoSpatialInfo;
 import com.grid.analytics.dto.InferenceResponse;
 import com.grid.analytics.dto.TelemetryMessage;
 import com.grid.analytics.dto.TelemetryTick;
 import com.grid.analytics.model.AnomalyAlert;
 import com.grid.analytics.model.MeterReading;
+import com.grid.analytics.model.SpatialAnomalyAlert;
 import com.grid.analytics.repository.AnomalyAlertRepository;
 import com.grid.analytics.repository.MeterReadingRepository;
+import com.grid.analytics.repository.SpatialAnomalyAlertRepository;
+import com.grid.analytics.service.GeoSpatialLookupService;
 import com.grid.analytics.service.InferenceClientService;
 import com.grid.analytics.websocket.WebSocketAlertBroker;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -37,6 +42,8 @@ public class SmartMeterStreamConsumer {
     private final InferenceClientService inferenceClientService;
     private final MeterReadingRepository meterReadingRepository;
     private final AnomalyAlertRepository anomalyAlertRepository;
+    private final SpatialAnomalyAlertRepository spatialAnomalyAlertRepository;
+    private final GeoSpatialLookupService geospatialLookupService;
     private final WebSocketAlertBroker webSocketAlertBroker;
 
     private final Map<String, Double> expectedBaselineByHousehold = new ConcurrentHashMap<>();
@@ -67,6 +74,7 @@ public class SmartMeterStreamConsumer {
 
     private void handleInferenceResult(TelemetryMessage message, InferenceResponse inference, double baseline) {
         Instant now = Instant.now();
+        GeoSpatialInfo geo = geospatialLookupService.resolve(message.householdId());
 
         MeterReading reading = MeterReading.builder()
                 .householdId(message.householdId())
@@ -87,14 +95,15 @@ public class SmartMeterStreamConsumer {
                 baseline,
                 inference.anomalyScore(),
                 inference.anomalyDetected(),
-                message.timestamp()));
+                message.timestamp(),
+                geo));
 
         if (inference.anomalyDetected()) {
-            persistAndBroadcastAlert(message, inference);
+            persistAndBroadcastAlert(message, inference, geo);
         }
     }
 
-    private void persistAndBroadcastAlert(TelemetryMessage message, InferenceResponse inference) {
+    private void persistAndBroadcastAlert(TelemetryMessage message, InferenceResponse inference, GeoSpatialInfo geo) {
         String alertType = classifyAlertType(message, inference);
         String severity = classifySeverity(inference);
 
@@ -111,6 +120,13 @@ public class SmartMeterStreamConsumer {
                 .build();
         anomalyAlertRepository.save(alert);
 
+        spatialAnomalyAlertRepository.save(SpatialAnomalyAlert.builder()
+                .alertId(UUID.randomUUID())
+                .householdId(message.householdId())
+                .timestamp(message.timestamp())
+                .anomalyScore(inference.anomalyScore())
+                .build());
+
         webSocketAlertBroker.broadcastAlert(new AlertBroadcast(
                 message.householdId(),
                 severity,
@@ -118,7 +134,8 @@ public class SmartMeterStreamConsumer {
                 message.kwConsumed(),
                 inference.anomalyScore(),
                 inference.confidenceScore(),
-                message.timestamp()));
+                message.timestamp(),
+                geo));
     }
 
     private String classifyAlertType(TelemetryMessage message, InferenceResponse inference) {
@@ -132,11 +149,10 @@ public class SmartMeterStreamConsumer {
     }
 
     private String classifySeverity(InferenceResponse inference) {
-        final float score = inference.confidenceScore();
-        if (score >= 0.85) {
+        final double confidence = inference.confidenceScore();
+        if (confidence >= 0.85) {
             return "Severe";
-        }
-        if (score >= 0.5) {
+        } else if (confidence >= 0.5) {
             return "Moderate";
         }
         return "Minor";

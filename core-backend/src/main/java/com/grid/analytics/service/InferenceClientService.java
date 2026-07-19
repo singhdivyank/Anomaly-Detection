@@ -1,18 +1,18 @@
-package main.java.com.grid.analytics.service;
+package com.grid.analytics.service;
 
 import java.time.Duration;
-
-import main.java.com.grid.analytics.dto.InferenceRequest;
-import main.java.com.grid.analytics.dto.InferenceResponse;
-import main.java.com.grid.analytics.dto.TelemetryMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
+
+import com.grid.analytics.dto.InferenceRequest;
+import com.grid.analytics.dto.InferenceResponse;
+import com.grid.analytics.dto.TelemetryMessage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
 
 /**
  * Calls the Python FastAPI ML inference sidecar over HTTP
