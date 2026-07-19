@@ -97,10 +97,13 @@ services:
     environment:
       KAFKA_BROKERS: kafka:29092
       KAFKA_TOPIC: smart-meter-telemetry
-      CSV_PATH: /data/smart_meter_data.csv
       STREAM_RATE_MS: "200"
+      GCS_BUCKET: ${IOT_GCS_BUCKET:?Set IOT_GCS_BUCKET in your .env file, e.g. IOT_GCS_BUCKET=my-grid-datasets}
+      GCS_OBJECT: ${IOT_GCS_OBJECT:-smart-meter-data/smart_meter_data.csv}
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/gcs-key.json
     volumes:
       - ./iot-simulator/data:/data:ro
+      - ${IOT_GCS_KEY_FILE:-./secrets/gcs-service-account.json}:/secrets/gcs-key.json:ro
 
 volumes:
   timescale_data:
