@@ -8,14 +8,20 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/joho/godotenv"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -31,23 +37,26 @@ type MeterReading struct {
 type config struct {
 	kafkaBrokers  string
 	kafkaTopic    string
-	csvPath       string
+	gcsBucket     string
+	gcsObject     string
 	streamRateMs  int
-	workerCount   int
+	channelBuffer   int
 }
 
 func loadConfig() config {
 	cfg := config{
-		kafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
-		kafkaTopic:   getEnv("KAFKA_TOPIC", "smart-meter-telemetry"),
-		csvPath:      getEnv("CSV_PATH", "./data/smart_meter_data.csv"),
+		kafkaBrokers: getEnv("KAFKA_BROKERS", ""),
+		kafkaTopic:   getEnv("KAFKA_TOPIC", ""),
+		gcsBucket:     getEnv("GCS_BUCKET", ""),
+		gcsObject:     getEnv("GCS_OBJECT", ""),
 		streamRateMs: getEnvInt("STREAM_RATE_MS", 200),
-		workerCount:  getEnvInt("WORKER_COUNT", 8),
+		channelBuffer:  getEnvInt("HOUSEHOLD_CHANNEL_BUFFER", 32),
 	}
 	return cfg
 }
 
 func getEnv(key, fallback string) string {
+	fmt.Println(os.LookupEnv(key))
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		return v
 	}
@@ -64,15 +73,21 @@ func getEnvInt(key string, fallback int) int {
 }
 
 func main() {
-	cfg := loadConfig()
-	log.Printf("iot-simulator starting: brokers=%s topic=%s csv=%s rate_ms=%d workers=%d",
-		cfg.kafkaBrokers, cfg.kafkaTopic, cfg.csvPath, cfg.streamRateMs, cfg.workerCount)
-
-	rows, err := readCSV(cfg.csvPath)
-	if err != nil {
-		log.Fatalf("failed to read source CSV: %v", err)
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Fatalf("failed to load .env: %v", err)
 	}
-	log.Printf("loaded %d rows from %s", len(rows), cfg.csvPath)
+	cfg := loadConfig()
+	log.Printf("iot-simulator starting: brokers=%s topic=%s rate_ms=%d",
+		cfg.kafkaBrokers, cfg.kafkaTopic, cfg.streamRateMs)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	source, closeSource, err := openCSVSource(ctx, cfg)
+	if err != nil {
+		log.Fatalf("failed to open CSV source: %v", err)
+	}
+	defer closeSource()
 
 	writer := &kafka.Writer{
 		Addr:         kafka.TCP(strings.Split(cfg.kafkaBrokers, ",")...),
@@ -83,93 +98,31 @@ func main() {
 	}
 	defer writer.Close()
 
-	// Fan the rows out across N concurrent household "device" goroutines
-	byHousehold := groupByHousehold(rows)
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, cfg.workerCount)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	for householdID, readings := range byHousehold {
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(id string, readings []MeterReading) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			streamHousehold(ctx, writer, id, readings, time.Duration(cfg.streamRateMs)*time.Millisecond)
-		}(householdID, readings)
+	if err := streamAllHouseholds(ctx, source, writer, cfg); err != nil {
+		log.Fatalf("streaming failed: %v", err)
 	}
-
-	wg.Wait()
 	log.Println("iot-simulator finished streaming all rows")
 }
 
-// streamHousehold publishes one household's time-ordered readings to Kafka
-// at a fixed cadence, using household_id as the partition/message key so
-// Kafka guarantees per-household ordering downstream.
-func streamHousehold(ctx context.Context, writer *kafka.Writer, householdID string, readings []MeterReading, rate time.Duration) {
-	ticker := time.NewTicker(rate)
-	defer ticker.Stop()
-
-	for _, reading := range readings {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			payload, err := json.Marshal(reading)
-			if err != nil {
-				log.Printf("[%s] marshal error: %v", householdID, err)
-				continue
-			}
-			err = writer.WriteMessages(ctx, kafka.Message{
-				Key:   []byte(householdID),
-				Value: payload,
-				Time:  time.Now(),
-			})
-			if err != nil {
-				log.Printf("[%s] kafka write error: %v", householdID, err)
-			}
-		}
-	}
-}
-
-// readCSV parses the LCL-FullData-style CSV and maps each row onto the
-// MeterReading ingestion contract.
-func readCSV(path string) ([]MeterReading, error) {
-	f, err := os.Open(path)
+func openCSVSource(ctx context.Context, cfg config) (io.Reader, func() error, error) {
+	fmt.Println("CFG:", cfg)
+	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf(
+			"creating GCS client (check GOOGLE_APPLICATION_CREDENTIALS is set and points to a valid service account key): %w", err)
 	}
-	defer f.Close()
 
-	r := csv.NewReader(f)
-	r.ReuseRecord = true
-
-	header, err := r.Read()
+	rc, err := client.Bucket(cfg.gcsBucket).Object(cfg.gcsObject).NewReader(ctx)
 	if err != nil {
-		return nil, err
+		_ = client.Close()
+		return nil, nil, fmt.Errorf("opening gs://%s/%s: %w", cfg.gcsBucket, cfg.gcsObject, err)
 	}
-	colIdx := indexHeader(header)
 
-	var out []MeterReading
-	for {
-		record, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Printf("skipping malformed row: %v", err)
-			continue
-		}
-
-		reading, ok := mapRow(record, colIdx)
-		if !ok {
-			continue
-		}
-		out = append(out, reading)
-	}
-	return out, nil
+	log.Printf("streaming CSV from gs://%s/%s", cfg.gcsBucket, cfg.gcsObject)
+	return rc, func() error {
+		_ = rc.Close()
+		return client.Close()
+	}, nil
 }
 
 type headerIndex struct {
@@ -228,10 +181,107 @@ func mapRow(record []string, idx headerIndex) (MeterReading, bool) {
 	}, true
 }
 
-func groupByHousehold(rows []MeterReading) map[string][]MeterReading {
-	grouped := make(map[string][]MeterReading)
-	for _, r := range rows {
-		grouped[r.HouseholdID] = append(grouped[r.HouseholdID], r)
+func streamAllHouseholds(ctx context.Context, source io.Reader, writer *kafka.Writer, cfg config) error {
+	r := csv.NewReader(source)
+	r.ReuseRecord = true
+
+	header, err := r.Read()
+	if err != nil {
+		return fmt.Errorf("reading CSV header: %w", err)
 	}
-	return grouped
+	colIdx := indexHeader(header)
+	if colIdx.lclid < 0 || colIdx.datetime < 0 || colIdx.kwh < 0 {
+		return errors.New("CSV header missing required columns (LCLid, DateTime, KWH/hh)")
+	}
+
+	rate := time.Duration(cfg.streamRateMs) * time.Millisecond
+
+	var mu sync.Mutex
+	routes := make(map[string]chan MeterReading)
+	var wg sync.WaitGroup
+
+	rowCount := 0
+	for {
+		record, readErr := r.Read()
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			log.Printf("skipping malformed row: %v", readErr)
+			continue
+		}
+
+		reading, ok := mapRow(record, colIdx)
+		if !ok {
+			continue
+		}
+		rowCount++
+
+		mu.Lock()
+		ch, exists := routes[reading.HouseholdID]
+		if !exists {
+			ch = make(chan MeterReading, cfg.channelBuffer)
+			routes[reading.HouseholdID] = ch
+			wg.Add(1)
+			go func(householdID string, readings <-chan MeterReading) {
+				defer wg.Done()
+				streamHousehold(ctx, writer, householdID, readings, rate)
+			}(reading.HouseholdID, ch)
+		}
+		mu.Unlock()
+
+		select {
+		case ch <- reading:
+		case <-ctx.Done():
+			closeAllRoutes(&mu, routes)
+			wg.Wait()
+			return ctx.Err()
+		}
+
+		if rowCount%500_000 == 0 {
+			mu.Lock()
+			active := len(routes)
+			mu.Unlock()
+			log.Printf("dispatched %d rows across %d households so far", rowCount, active)
+		}
+	}
+
+	closeAllRoutes(&mu, routes)
+	wg.Wait()
+
+	log.Printf("dispatched %d total rows across %d households", rowCount, len(routes))
+	return nil
+}
+
+func closeAllRoutes(mu *sync.Mutex, routes map[string]chan MeterReading) {
+	mu.Lock()
+	defer mu.Unlock()
+	for _, ch := range routes {
+		close(ch)
+	}
+}
+
+func streamHousehold(ctx context.Context, writer *kafka.Writer, householdID string, readings <-chan MeterReading, rate time.Duration) {
+	ticker := time.NewTicker(rate)
+	defer ticker.Stop()
+
+	for reading := range readings {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			payload, err := json.Marshal(reading)
+			if err != nil {
+				log.Printf("[%s] marshal error: %v", householdID, err)
+				continue
+			}
+			if err := writer.WriteMessages(ctx, kafka.Message{
+				Key:   []byte(householdID),
+				Value: payload,
+				Time:  time.Now(),
+			}); err != nil {
+				log.Printf("[%s] kafka write error: %v", householdID, err)
+			}
+		}
+	}
 }

@@ -6,6 +6,7 @@ COPY main.go ./
 RUN CGO_ENABLED=0 GOOS=linux go build -o /iot-simulator main.go
 
 FROM alpine:3.20
+RUN apk add --no-cache ca-certificates
 RUN adduser -D -H simuser
 COPY --from=build /iot-simulator /usr/local/bin/iot-simulator
 USER simuser

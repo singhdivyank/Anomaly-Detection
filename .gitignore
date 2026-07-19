@@ -10,6 +10,7 @@ __pycache__/
 .venv/
 *.egg-info/
 
-.DS_Store/
+*.DS_Store/
 node_modules/
+secrets/
 *.csv
